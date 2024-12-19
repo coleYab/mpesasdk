@@ -1,4 +1,4 @@
-package main
+package mpesaclient
 
 import (
 	"encoding/base64"
@@ -68,6 +68,8 @@ func getAccessToken(consumerKey, consumerSecret string) AccessToken {
 	// accessToken.ExpiresAt = time.Now().Add(time.Duration())
 	return accessToken
 }
+
+
 
 func makePayment(accessToken AccessToken) Payment {
 	payment := Payment{}
