@@ -63,7 +63,7 @@ func reverseTransaction() {
   
 	res, err := client.Do(req)
 	defer res.Body.Close()
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	fmt.Println(string(body))
 }
 
