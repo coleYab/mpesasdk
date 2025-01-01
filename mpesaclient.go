@@ -2,13 +2,8 @@ package mpesasdk
 
 import (
 	"bytes"
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"embed"
 	"encoding/base64"
 	"encoding/json"
-	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -250,33 +245,6 @@ func (m *MpesaClient) STKPushPaymentRequest(passkey string, req USSDPushRequest)
     fmt.Println(string(data))
     defer res.Body.Close();
     return true, nil
-}
-
-//go:embed certs/production.cert
-var certFS embed.FS
-func (m *MpesaClient) encodeInitiatorPassword(initiatorPassword string) (string, error) {
-    m.certPath = "certs/production.cert"
-    publicKey, err := certFS.ReadFile(m.certPath)
-    if err != nil {
-        return "", fmt.Errorf("mpesa: read cert: %v", err)
-    }
-
-    block, _ := pem.Decode(publicKey)
-
-    var cert *x509.Certificate
-    cert, err = x509.ParseCertificate(block.Bytes)
-    if err != nil {
-        return "", fmt.Errorf("mpesa:parse cert: %v", err)
-    }
-
-    rsaPublicKey := cert.PublicKey.(*rsa.PublicKey)
-    reader := rand.Reader
-    signature, err := rsa.EncryptPKCS1v15(reader, rsaPublicKey, []byte(initiatorPassword))
-    if err != nil {
-        return "", fmt.Errorf("mpesa: encrypt password: %v", err)
-    }
-
-    return base64.StdEncoding.EncodeToString(signature), nil
 }
 
 func generateTimestampAndPassword(shortcode uint, passkey string) (string, string) {
