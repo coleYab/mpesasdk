@@ -1,9 +1,16 @@
 package client
 
 import (
+	"bytes"
+	"encoding/json"
+	"io"
 	"net/http"
-	"strings"
 	"time"
+)
+
+const (
+    authTypeBearer = "Bearer"
+    authTypeBasic  = "Basic"
 )
 
 type HttpClient struct {
@@ -25,26 +32,45 @@ func NewHttpClient(timeout, maxRetries uint) *HttpClient {
     }
 }
 
-func (c *HttpClient) MakeRequest(url, method, payload string, authToken string) (*http.Response, error) {
-    req, err := http.NewRequest(method, url, strings.NewReader(payload))
+func (c *HttpClient) MakeRequest(url, method string, payload interface{}, authType string) ([]byte, error) {
+    var body io.Reader
+    if payload != nil {
+        jsonData, err := json.Marshal(payload)
+        if err != nil {
+            return nil, err
+        }
+        body = bytes.NewReader(jsonData)
+    }
+
+    req, err := http.NewRequest(method, url, body)
     if err != nil {
         return nil, err
     }
 
     req.Header.Add("Content-Type", "application/json")
-
-    if authToken != "" {
+    switch authType {
+    case authTypeBearer:
+        authToken, err := getAuthorizationToken()
+        if err != nil {
+            return nil, err
+        }
         req.Header.Add("Authorization", authToken)
+    case authTypeBasic:
+        req.SetBasicAuth(client.consumerKey, client.consumerSecret)
     }
 
-    res, err := c.client.Do(req)
+    res, err := client.Do(req)
+    if err != nil {
+        return nil, err
+    }
+    defer res.Body.Close()
+
+    responseData, err := io.ReadAll(res.Body)
     if err != nil {
         return nil, err
     }
 
-    defer res.Body.Close()
-
-    return res, nil
+    return responseData, nil
 }
 
 

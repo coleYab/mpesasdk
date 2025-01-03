@@ -20,14 +20,14 @@ import (
 type Enviroment string
 
 const (
-    EnviromentProduction = "Production"
-    EnviromentSandBox = "SandBox"
+    PRODUCTION  Enviroment = "Production"
+    SANDBOX     Enviroment = "SandBox"
 )
 
 type AuthorizationToken struct {
-    Token string
-    CreatedAt time.Time
-    ExpiresIn int
+    Token       string
+    CreatedAt   time.Time
+    ExpiresIn   int
 }
 
 type AuthResponse struct {
@@ -40,43 +40,42 @@ type AuthResponse struct {
 
 const (
     authTypeBearer = "Bearer"
-    authTypeBasic = "Basic"
+    authTypeBasic  = "Basic"
 )
 
+// TODO(coleYab): add suppport for more data validation and pagination
 type MpesaClient struct {
-    consumerKey    string
-    consumerSecret string
-
-    authorizationToken AuthorizationToken
-
-    enviroment Enviroment
-
-    client *http.Client
+    consumerKey         string
+    consumerSecret      string
+    authorizationToken  AuthorizationToken
+    env                 Enviroment
+    client              *http.Client
 }
 
-
-func NewMpesaClient(consumerKey, consumerSecret string) *MpesaClient {
+// This is a function that will create the MpesaClient that will enable the users to
+// interact with the mpesa api
+func NewMpesaClient(consumerKey, consumerSecret string, env Enviroment) *MpesaClient {
     client := &http.Client{
         Timeout: 5 * time.Second,
     }
 
     return &MpesaClient{
-        consumerKey: consumerKey,
-        consumerSecret: consumerSecret,
+        consumerKey:        consumerKey,
+        consumerSecret:     consumerSecret,
         authorizationToken: AuthorizationToken{},
-
-        client: client,
+        env:                env,
+        client:             client,
     }
 }
 
 func (m *MpesaClient) setAuthToken(tokenType, token string, expiresIn int) {
-    m.authorizationToken.Token = fmt.Sprintf("%v %v", tokenType, token)
+    m.authorizationToken.Token     = fmt.Sprintf("%v %v", tokenType, token)
     m.authorizationToken.CreatedAt = time.Now()
     m.authorizationToken.ExpiresIn = expiresIn
 }
 
-func (m *MpesaClient) GetAuthorizationToken() (string, error) {
-    url := "https://apisandbox.safaricom.et/v1/token/generate?grant_type=client_credentials"
+func (m *MpesaClient) getAuthorizationToken() (string, error) {
+    url := m.constructURL("/v1/token/generate?grant_type=client_credentials")
     method := "GET"
     if m.authorizationToken.Token != "" && time.Now().Before(m.authorizationToken.CreatedAt.Add(time.Duration(m.authorizationToken.ExpiresIn - 2) * time.Second)) {
         return m.authorizationToken.Token, nil
@@ -110,8 +109,8 @@ func (m *MpesaClient) GetAuthorizationToken() (string, error) {
     }
 
     if authResponse.ResultCode != "" {
-        return "", fmt.Errorf("Authorization Filed with status code %v due to %v",
-            authResponse.ResultCode, authResponse.ResultDesc)
+        return "", fmt.Errorf("mpesasdk failed to get authorization token due to %s",
+            authResponse.ResultDesc)
     }
 
     expiresIn, _ := strconv.Atoi(authResponse.ExpiresIn)
@@ -123,8 +122,9 @@ func (m *MpesaClient) GetAuthorizationToken() (string, error) {
 func (m *MpesaClient) RegisterNewURL(req c2b.RegisterC2BURLRequest) (bool, error) {
     endpoint := "/v1/c2b-register-url/register?apikey=" + m.consumerKey
 
-    response, err := m.apiRequest(endpoint, "POST", req, "")
+    response, err := m.apiRequest(endpoint, "POST", req, "Bearer")
     if err != nil {
+       fmt.Printf("DEBUG: authorizationToken is  [%v]\n", m.authorizationToken.Token)
        fmt.Printf("ERROR: while making request [%v]\n", err.Error())
         return false, err
     }
@@ -179,15 +179,6 @@ func (m *MpesaClient) STKPushPaymentRequest(passkey string, req c2b.USSDPushRequ
     return true, nil
 }
 
-
-func (m *MpesaClient) constructURL(endpoint string) string {
-    baseURL := "https://apisandbox.safaricom.et"
-    if m.enviroment == EnviromentProduction {
-        baseURL = "https://api.safaricom.et"
-    }
-    return fmt.Sprintf("%s%s", baseURL, endpoint)
-}
-
 func (m *MpesaClient) ReverseTransaction(req transaction.TransactionReversalRequest) (bool, error) {
     response, err := m.apiRequest("/mpesa/reversal/v2/request", "POST", req, authTypeBearer)
     if err != nil {
@@ -197,12 +188,23 @@ func (m *MpesaClient) ReverseTransaction(req transaction.TransactionReversalRequ
     return true, nil
 }
 
+func (m *MpesaClient) constructURL(endpoint string) string {
+    baseURL := "https://apisandbox.safaricom.et"
+    if m.env == PRODUCTION {
+        baseURL = "https://api.safaricom.et"
+    }
+    return fmt.Sprintf("%s%s", baseURL, endpoint)
+}
+
+
 func generateTimestampAndPassword(shortcode uint, passkey string) (string, string) {
     timestamp := time.Now().Format("20060102150405")
     password := fmt.Sprintf("%d%s%s", shortcode, passkey, timestamp)
     return timestamp, base64.StdEncoding.EncodeToString([]byte(password))
 }
 
+
+// TODO(coleYab): take it to the client service
 func (m *MpesaClient) apiRequest(endpoint, method string, payload interface{}, authType string) ([]byte, error) {
     url := m.constructURL(endpoint)
     var body io.Reader
@@ -222,7 +224,7 @@ func (m *MpesaClient) apiRequest(endpoint, method string, payload interface{}, a
     req.Header.Add("Content-Type", "application/json")
     switch authType {
     case authTypeBearer:
-        authToken, err := m.GetAuthorizationToken()
+        authToken, err := m.getAuthorizationToken()
         if err != nil {
             return nil, err
         }

@@ -1,4 +1,4 @@
-package mpesasdk;
+package auth;
 
 type Response struct {
     // MerchantRequestID	This is a global unique Identifier for any submitted payment request.	String	16813-1590513-1

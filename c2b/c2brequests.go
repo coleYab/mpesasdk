@@ -5,7 +5,7 @@ package c2b;
 // This is used for setting up a shortcode for accepting customer payments.
 type RegisterC2BURLRequest struct {
     // ShortCode is the unique M-Pesa shortcode used for business payments.
-    ShortCode uint `json:"ShortCode"`
+    ShortCode string `json:"ShortCode"`
 
     // ResponseType determines how M-Pesa handles unresponsive validation URLs ("Completed" or "Cancelled").
     ResponseType string `json:"ResponseType"`
