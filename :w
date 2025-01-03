@@ -1,0 +1,3 @@
+    fmt.Printf("DEBUG: status code for the request is: %v\n", res.Status)
+    responseData, err := io.ReadAll(res.Body)
+    if err != nil {

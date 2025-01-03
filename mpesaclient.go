@@ -8,15 +8,16 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"time"
 
 	"github.com/coleYab/mpesasdk/account"
 	"github.com/coleYab/mpesasdk/b2c"
 	"github.com/coleYab/mpesasdk/c2b"
+	sdkError "github.com/coleYab/mpesasdk/errors"
 	"github.com/coleYab/mpesasdk/service"
 	"github.com/coleYab/mpesasdk/transaction"
-	sdkError "github.com/coleYab/mpesasdk/errors"
 )
 
 type Enviroment string
@@ -127,8 +128,6 @@ func (m *MpesaClient) RegisterNewURL(req c2b.RegisterC2BURLRequest) (bool, error
 
     response, err := m.apiRequest(endpoint, "POST", req, "Bearer")
     if err != nil {
-       fmt.Printf("DEBUG: authorizationToken is  [%v]\n", m.authorizationToken.Token)
-       fmt.Printf("ERROR: while making request [%v]\n", err.Error())
         return false, err
     }
 
@@ -207,7 +206,7 @@ func generateTimestampAndPassword(shortcode uint, passkey string) (string, strin
 }
 
 // TODO(coleYab): take it to the client service
-func (m *MpesaClient) apiRequest(endpoint, method string, payload interface{}, authType string) ([]byte, error) {
+func (m *MpesaClient) apiRequest(endpoint, method string, payload interface{}, authType string) (*http.Response, error) {
     url := m.constructURL(endpoint)
     var body io.Reader
     if payload != nil {
@@ -239,16 +238,8 @@ func (m *MpesaClient) apiRequest(endpoint, method string, payload interface{}, a
     if err != nil {
         return nil, err
     }
-    defer res.Body.Close()
 
-    fmt.Printf("Debug: request status of this thing is %v", res.Status)
-
-    responseData, err := io.ReadAll(res.Body)
-    if err != nil {
-        return nil, err
-    }
-
-    return responseData, nil
+    return res, nil
 }
 
 func (m *MpesaClient) handleError(err error) {
@@ -257,6 +248,23 @@ func (m *MpesaClient) handleError(err error) {
     }
 }
 
-func (m *MpesaClient) delcodeResponse(response map[string]interface{}) {
+type SuccessResponse struct {
+    OriginatorConversationId string
+    RequestId string
+    Message string
+}
 
+func (m *MpesaClient) delcodeResponse(res *http.Response) (*SuccessResponse, error) {
+    body, _ := io.ReadAll(res.Body)
+
+    var responseData map[string]interface{}
+    if err := json.Unmarshal(body, responseData); err != nil {
+        return nil, sdkError.ProcessingError("Error decoding the response")
+    }
+
+    if res.StatusCode != 200 {
+        // m.handleError(errorCode, message)
+    }
+
+    return nil, nil
 }
