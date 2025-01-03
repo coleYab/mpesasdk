@@ -1,10 +1,10 @@
-package mpesasdk;
+package transaction;
 
 // TransactionStatusRequest represents the parameters for querying the status of a transaction.
 // It is used to check the status of a previously initiated transaction.
 type TransactionStatusRequest struct {
     // CommandID is the type of request (usually "TransactionStatusQueryCommandID").
-    CommandID CommandID `json:"CommandID"`
+    CommandID string `json:"CommandID"`
 
     // IdentifierType defines the type of identifier used for PartyA (e.g., "Shortcode").
     IdentifierType string `json:"IdentifierType"`

@@ -1,4 +1,4 @@
-package mpesasdk;
+package c2b;
 
 
 // RegisterC2BURLRequest represents the parameters for registering a C2B validation and confirmation URL.
@@ -11,7 +11,7 @@ type RegisterC2BURLRequest struct {
     ResponseType string `json:"ResponseType"`
 
     // Use “RegisterURL” to differentiate the service from other services.	String	RegisterURL
-    CommandID CommandID `json:"CommandID"`
+    CommandID string `json:"CommandID"`
 
     // ConfirmationURL is the URL to receive payment completion notifications.
     ConfirmationURL string `json:"ConfirmationURL"`

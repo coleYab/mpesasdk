@@ -1,4 +1,4 @@
-package mpesasdk;
+package b2c;
 
 // B2CRequest defines the parameters for initiating a Business to Customer (B2C) payment.
 // This is used when an organization sends money to a customer.
@@ -10,7 +10,7 @@ type B2CRequest struct {
     SecurityCredential string `json:"SecurityCredential"`
 
     // CommandID defines the type of B2C transaction (e.g., SalaryPaymentCommandID).
-    CommandID CommandID `json:"CommandID"`
+    CommandID string `json:"CommandID"`
 
     // Amount is the amount to be sent to the customer.
     Amount uint `json:"Amount"`
@@ -36,5 +36,7 @@ type B2CRequest struct {
     OriginatorConversationID string `json:"OriginatorConversationID"`
 }
 
-
-
+// NewAccount()
+// fillDefaults()
+// fillConfigured()
+// validate()

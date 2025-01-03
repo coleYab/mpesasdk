@@ -1,10 +1,10 @@
-package mpesasdk;
+package account;
 
 // AccountBalanceRequest represents the parameters for querying the account balance for a shortcode.
 // This is used to check the balance of a business shortcode.
 type AccountBalanceRequest struct {
     // CommandID specifies the request type, typically "AccountBalanceCommandID".
-    CommandID CommandID `json:"CommandID"`
+    CommandID string `json:"CommandID"`
 
     // IdentifierType defines the type of identifier used for PartyA (usually "Shortcode").
     IdentifierType int `json:"IdentifierType"` // Changed to int
@@ -31,4 +31,6 @@ type AccountBalanceRequest struct {
     OriginatorConversationID string `json:"OriginatorConversationID"`
 }
 
-
+func (a *AccountBalanceRequest)FillDefaults() {
+    a.CommandID = "AccountBalance"
+}

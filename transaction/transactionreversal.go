@@ -1,4 +1,4 @@
-package mpesasdk;
+package transaction;
 
 // TransactionReversalRequest represents the parameters for reversing a transaction.
 // This is used to cancel or refund a transaction that has already been processed.
@@ -10,7 +10,7 @@ type TransactionReversalRequest struct {
     SecurityCredential string `json:"SecurityCredential"`
 
     // CommandID must be "TransactionReversal" for a reversal request.
-    CommandID CommandID `json:"CommandID"`
+    CommandID string `json:"CommandID"`
 
     // TransactionID is the ID of the transaction to be reversed.
     TransactionID string `json:"TransactionID"`
