@@ -39,7 +39,7 @@ type USSDPushRequest struct {
     ReferenceData []ReferenceDataRequest `json:"ReferenceData"`
 
     // TransactionType specifies the transaction type (e.g., PayBill or Till numbers).
-    TransactionType CommandID `json:"TransactionType"`
+    TransactionType string `json:"TransactionType"`
 
     // Password is the base64-encoded password used for encrypting the request.
     Password string `json:"Password"`
@@ -76,7 +76,7 @@ type USSDPushRequest struct {
 // Only on simulation mode
 type SimulateCustomerInititatedPayment struct {
     // Unique Command ID	String	CustomerPayBillOnline
-    CommandID CommandID `json:"CommandID"`
+    CommandID string `json:"CommandID"`
     // 	Transaction Amount	String - Numeric	20
     Amount uint64 `json:"Amount"`
     // Phone number of the customer	String - Numeric	0700100100

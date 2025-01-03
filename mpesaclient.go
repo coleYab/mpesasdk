@@ -14,9 +14,7 @@ import (
 	"github.com/coleYab/mpesasdk/account"
 	"github.com/coleYab/mpesasdk/b2c"
 	"github.com/coleYab/mpesasdk/c2b"
-	"github.com/coleYab/mpesasdk/client"
 	"github.com/coleYab/mpesasdk/transaction"
-	"github.com/coleYab/mpesasdk/validation"
 )
 
 type Enviroment string
@@ -25,15 +23,6 @@ const (
     EnviromentProduction = "Production"
     EnviromentSandBox = "SandBox"
 )
-
-func (e Enviroment) GetBaseUrl() string {
-    url := "https://apisandbox.safaricom.et"
-    if e == EnviromentProduction {
-        url = "https://api.safaricom.et"
-    }
-
-    return url
-}
 
 type AuthorizationToken struct {
     Token string
@@ -49,39 +38,18 @@ type AuthResponse struct {
     ResultDesc  string `json:"resultDesc"`
 }
 
-type App struct {
-    initiatorName string
-    shortCode uint
-	consumerKey    string
-	consumerSecret string
-    securityCredential string
-    passkey string
-    authorizationToken AuthorizationToken
-    client *client.HttpClient
-    enviroment Enviroment
-}
-
-func NewMpesaClientRefactored(
-    initiatorName string, shortCode uint,
-    consumerKey, consumerSecret string, securityCredential string,
-    passkey string, timeout uint, maxRetries uint, enviroment Enviroment,
-) *App {
-    httpClient := client.NewHttpClient(timeout, maxRetries)
-    return &App{
-        consumerKey: consumerKey,
-        consumerSecret: consumerSecret,
-        authorizationToken: AuthorizationToken{},
-        client: httpClient,
-    }
-}
+const (
+    authTypeBearer = "Bearer"
+    authTypeBasic = "Basic"
+)
 
 type MpesaClient struct {
-	consumerKey    string
-	consumerSecret string
+    consumerKey    string
+    consumerSecret string
 
     authorizationToken AuthorizationToken
 
-    certPath string
+    enviroment Enviroment
 
     client *http.Client
 }
@@ -95,6 +63,7 @@ func NewMpesaClient(consumerKey, consumerSecret string) *MpesaClient {
     return &MpesaClient{
         consumerKey: consumerKey,
         consumerSecret: consumerSecret,
+        authorizationToken: AuthorizationToken{},
 
         client: client,
     }
@@ -151,164 +120,128 @@ func (m *MpesaClient) GetAuthorizationToken() (string, error) {
     return m.authorizationToken.Token, nil
 }
 
-func (m *MpesaClient) makeHttpRequestwithToken(url string, method string, payload []byte, setAuthToken bool) (*http.Response, error) {
-    req, err := http.NewRequest(method, url, bytes.NewReader(payload))
+func (m *MpesaClient) RegisterNewURL(req c2b.RegisterC2BURLRequest) (bool, error) {
+    endpoint := "/v1/c2b-register-url/register?apikey=" + m.consumerKey
+
+    response, err := m.apiRequest(endpoint, "POST", req, "")
+    if err != nil {
+       fmt.Printf("ERROR: while making request [%v]\n", err.Error())
+        return false, err
+    }
+
+    fmt.Println(string(response))
+    return true, nil
+}
+
+func (m *MpesaClient) SimulateCustomerInititatedPayment(req c2b.SimulateCustomerInititatedPayment) (bool, error) {
+    response, err := m.apiRequest("/mpesa/b2c/simulatetransaction/v1/request", "POST", req, authTypeBearer)
+    if err != nil {
+        return false, err
+    }
+    fmt.Println(string(response))
+    return true, nil
+}
+
+func (m *MpesaClient) MakeB2CPaymentRequest(req b2c.B2CRequest) (bool, error) {
+    response, err := m.apiRequest("/mpesa/b2c/v2/paymentrequest", "POST", req, authTypeBearer)
+    if err != nil {
+        return false, err
+    }
+    fmt.Println(string(response))
+    return true, nil
+}
+
+func (m *MpesaClient) CheckTransactionStatus(req transaction.TransactionStatusRequest) (bool, error) {
+    response, err := m.apiRequest("/mpesa/transactionstatus/v1/query", "POST", req, authTypeBearer)
+    if err != nil {
+        return false, err
+    }
+    fmt.Println(string(response))
+    return true, nil
+}
+
+func (m *MpesaClient) AccountBalance(req account.AccountBalanceRequest) (bool, error) {
+    response, err := m.apiRequest("/mpesa/accountbalance/v2/query", "POST", req, authTypeBearer)
+    if err != nil {
+        return false, err
+    }
+    fmt.Println(string(response))
+    return true, nil
+}
+
+func (m *MpesaClient) STKPushPaymentRequest(passkey string, req c2b.USSDPushRequest) (bool, error) {
+    req.Timestamp, req.Password = generateTimestampAndPassword(req.BusinessShortCode, passkey)
+    response, err := m.apiRequest("/mpesa/stkpush/v3/processrequest", "POST", req, authTypeBearer)
+    if err != nil {
+        return false, err
+    }
+    fmt.Println(string(response))
+    return true, nil
+}
+
+
+func (m *MpesaClient) constructURL(endpoint string) string {
+    baseURL := "https://apisandbox.safaricom.et"
+    if m.enviroment == EnviromentProduction {
+        baseURL = "https://api.safaricom.et"
+    }
+    return fmt.Sprintf("%s%s", baseURL, endpoint)
+}
+
+func (m *MpesaClient) ReverseTransaction(req transaction.TransactionReversalRequest) (bool, error) {
+    response, err := m.apiRequest("/mpesa/reversal/v2/request", "POST", req, authTypeBearer)
+    if err != nil {
+        return false, err
+    }
+    fmt.Println(string(response))
+    return true, nil
+}
+
+func generateTimestampAndPassword(shortcode uint, passkey string) (string, string) {
+    timestamp := time.Now().Format("20060102150405")
+    password := fmt.Sprintf("%d%s%s", shortcode, passkey, timestamp)
+    return timestamp, base64.StdEncoding.EncodeToString([]byte(password))
+}
+
+func (m *MpesaClient) apiRequest(endpoint, method string, payload interface{}, authType string) ([]byte, error) {
+    url := m.constructURL(endpoint)
+    var body io.Reader
+    if payload != nil {
+        jsonData, err := json.Marshal(payload)
+        if err != nil {
+            return nil, err
+        }
+        body = bytes.NewReader(jsonData)
+    }
+
+    req, err := http.NewRequest(method, url, body)
     if err != nil {
         return nil, err
     }
 
     req.Header.Add("Content-Type", "application/json")
-
-    if setAuthToken {
+    switch authType {
+    case authTypeBearer:
         authToken, err := m.GetAuthorizationToken()
         if err != nil {
-            return nil, fmt.Errorf("error getting authorization token: %v", err)
+            return nil, err
         }
-
         req.Header.Add("Authorization", authToken)
+    case authTypeBasic:
+        req.SetBasicAuth(m.consumerKey, m.consumerSecret)
     }
 
     res, err := m.client.Do(req)
     if err != nil {
         return nil, err
     }
-
     defer res.Body.Close()
 
-    _, err = io.ReadAll(res.Body)
+    responseData, err := io.ReadAll(res.Body)
     if err != nil {
-        return nil, fmt.Errorf("error reading response body: %v", err)
+        return nil, err
     }
 
-    return res, nil
+    return responseData, nil
 }
 
-func (m *MpesaClient) RegisterNewURL(req c2b.RegisterC2BURLRequest) (bool, error) {
-    url := "https://apisandbox.safaricom.et/v1/c2b-register-url/register?apikey=" + m.consumerKey
-
-    switch req.ResponseType {
-    case "Cancelled", "Completed":
-        payload, _ := json.Marshal(req);
-        res, err := m.makeHttpRequestwithToken(url, "POST", payload, false)
-        if err != nil {
-            return false, err
-        }
-        data, _ := io.ReadAll(res.Body)
-        fmt.Println(string(data))
-        defer res.Body.Close();
-        return true, nil
-    default:
-        return false, fmt.Errorf("invalid ResponseType [%s] provided", req.ResponseType)
-    }
-}
-
-func (m *MpesaClient) SimulateCustomerInititatedPayment(req c2b.SimulateCustomerInititatedPayment) (bool, error) {
-    url :=  "https://apisandbox.safaricom.et/mpesa/b2c/simulatetransaction/v1/request"
-
-    payload, _ := json.Marshal(req)
-    res, err := m.makeHttpRequestwithToken(url, "POST", payload, true)
-    if err != nil {
-        return false, err
-    }
-
-    data, _ := io.ReadAll(res.Body)
-    fmt.Println(string(data))
-    defer res.Body.Close();
-    return true, nil
-}
-
-func (m *MpesaClient) MakeB2CPaymentRequest(req b2c.B2CRequest) (bool, error) {
-     url := "https://apisandbox.safaricom.et/mpesa/b2c/v2/paymentrequest"
-     payload, _ := json.Marshal(req)
-     res, err := m.makeHttpRequestwithToken(url, "POST", payload, true)
-     if err != nil {
-         return false, err
-     }
-
-    data, _ := io.ReadAll(res.Body)
-    fmt.Println(string(data))
-    defer res.Body.Close();
-    return true, nil
-}
-
-func (m *MpesaClient) CheckTransactionStatus(req transaction.TransactionStatusRequest) (bool, error) {
-    url :=  "https://apisandbox.safaricom.et/mpesa/transactionstatus/v1/query"
-
-    payload, _ := json.Marshal(req)
-    res, err := m.makeHttpRequestwithToken(url, "POST", payload, true)
-    if err != nil {
-        return false, err
-    }
-
-    data, _ := io.ReadAll(res.Body)
-    fmt.Println(string(data))
-    defer res.Body.Close();
-    return true, nil
-}
-
-func (m *MpesaClient) AccountBalance(req account.AccountBalanceRequest) (bool, error) {
-    url :=  "https://apisandbox.safaricom.et/mpesa/accountbalance/v2/query"
-
-    req.CommandID = "AccountBalance"
-
-    payload, _ := json.Marshal(req)
-    res, err := m.makeHttpRequestwithToken(url, "POST", payload, true)
-    if err != nil {
-        return false, err
-    }
-
-    data, _ := io.ReadAll(res.Body)
-    fmt.Println(string(data))
-    defer res.Body.Close();
-    return true, nil
-}
-
-func (m *MpesaClient) STKPushPaymentRequest(passkey string, req c2b.USSDPushRequest) (bool, error) {
-    url :=  "https://apisandbox.safaricom.et/mpesa/stkpush/v3/processrequest"
-    req.Timestamp, req.Password = generateTimestampAndPassword(req.BusinessShortCode, passkey)
-
-    if err := validation.ValidateURL(req.CallBackURL); err != nil {
-        return false, err
-    }
-
-    payload, _ := json.Marshal(req)
-    res, err := m.makeHttpRequestwithToken(url, "POST", payload, true)
-    if err != nil {
-        return false, err
-    }
-
-
-    data, _ := io.ReadAll(res.Body)
-    fmt.Println(string(data))
-    defer res.Body.Close();
-    return true, nil
-}
-
-func generateTimestampAndPassword(shortcode uint, passkey string) (string, string) {
-	timestamp := time.Now().Format("20060102150405")
-	password := fmt.Sprintf("%d%s%s", shortcode, passkey, timestamp)
-	return timestamp, base64.StdEncoding.EncodeToString([]byte(password))
-}
-
-func (m *MpesaClient) ReverseTransaction(req transaction.TransactionReversalRequest) (bool, error) {
-    url :=  "https://apisandbox.safaricom.et/mpesa/reversal/v2/request"
-
-    if err := validation.ValidateURL(req.ResultURL); err != nil {
-        return false, err
-    }
-
-    if err := validation.ValidateURL(req.QueueTimeOutURL); err != nil {
-        return false, err
-    }
-
-    payload, _ := json.Marshal(req)
-    res, err := m.makeHttpRequestwithToken(url, "POST", payload, true)
-    if err != nil {
-        return false, err
-    }
-
-    data, _ := io.ReadAll(res.Body)
-    fmt.Println(string(data))
-    defer res.Body.Close();
-    return true, nil
-}
