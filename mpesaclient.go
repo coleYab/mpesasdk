@@ -14,6 +14,7 @@ import (
 	"github.com/coleYab/mpesasdk/account"
 	"github.com/coleYab/mpesasdk/b2c"
 	"github.com/coleYab/mpesasdk/c2b"
+	"github.com/coleYab/mpesasdk/service"
 	"github.com/coleYab/mpesasdk/transaction"
 )
 
@@ -50,11 +51,12 @@ type MpesaClient struct {
     authorizationToken  AuthorizationToken
     env                 Enviroment
     client              *http.Client
+    logger              *service.Logger
 }
 
 // This is a function that will create the MpesaClient that will enable the users to
 // interact with the mpesa api
-func NewMpesaClient(consumerKey, consumerSecret string, env Enviroment) *MpesaClient {
+func NewMpesaClient(consumerKey, consumerSecret string, env Enviroment, logLevel service.LogLevel) *MpesaClient {
     client := &http.Client{
         Timeout: 5 * time.Second,
     }
@@ -65,6 +67,7 @@ func NewMpesaClient(consumerKey, consumerSecret string, env Enviroment) *MpesaCl
         authorizationToken: AuthorizationToken{},
         env:                env,
         client:             client,
+        logger:             service.NewLogger(logLevel),
     }
 }
 
@@ -173,6 +176,7 @@ func (m *MpesaClient) STKPushPaymentRequest(passkey string, req c2b.USSDPushRequ
     req.Timestamp, req.Password = generateTimestampAndPassword(req.BusinessShortCode, passkey)
     response, err := m.apiRequest("/mpesa/stkpush/v3/processrequest", "POST", req, authTypeBearer)
     if err != nil {
+        m.handleError(err)
         return false, err
     }
     fmt.Println(string(response))
@@ -196,13 +200,11 @@ func (m *MpesaClient) constructURL(endpoint string) string {
     return fmt.Sprintf("%s%s", baseURL, endpoint)
 }
 
-
 func generateTimestampAndPassword(shortcode uint, passkey string) (string, string) {
     timestamp := time.Now().Format("20060102150405")
     password := fmt.Sprintf("%d%s%s", shortcode, passkey, timestamp)
     return timestamp, base64.StdEncoding.EncodeToString([]byte(password))
 }
-
 
 // TODO(coleYab): take it to the client service
 func (m *MpesaClient) apiRequest(endpoint, method string, payload interface{}, authType string) ([]byte, error) {
@@ -247,3 +249,8 @@ func (m *MpesaClient) apiRequest(endpoint, method string, payload interface{}, a
     return responseData, nil
 }
 
+func (m *MpesaClient) handleError(err error) {
+    if err != nil {
+        m.logger.Error("MpesaClient Error: %v", err.Error())
+    }
+}
