@@ -16,6 +16,7 @@ import (
 	"github.com/coleYab/mpesasdk/c2b"
 	"github.com/coleYab/mpesasdk/service"
 	"github.com/coleYab/mpesasdk/transaction"
+	sdkError "github.com/coleYab/mpesasdk/errors"
 )
 
 type Enviroment string
@@ -95,12 +96,12 @@ func (m *MpesaClient) getAuthorizationToken() (string, error) {
     client := &http.Client{}
     res, err := client.Do(req)
     if err != nil {
-        return "", err
+        return "", sdkError.NetworkingError(err.Error())
     }
 
     body, err := io.ReadAll(res.Body)
     if err != nil {
-        return "", err
+        return "", sdkError.ProcessingError(err.Error())
     }
 
     defer res.Body.Close()
@@ -108,12 +109,11 @@ func (m *MpesaClient) getAuthorizationToken() (string, error) {
     authResponse := AuthResponse{}
     err = json.Unmarshal(body, &authResponse)
     if err != nil {
-        return "", err
+        return "", sdkError.ProcessingError(err.Error())
     }
 
     if authResponse.ResultCode != "" {
-        return "", fmt.Errorf("mpesasdk failed to get authorization token due to %s",
-            authResponse.ResultDesc)
+        return "", sdkError.AuthenticationError(authResponse.ResultDesc)
     }
 
     expiresIn, _ := strconv.Atoi(authResponse.ExpiresIn)
@@ -241,6 +241,8 @@ func (m *MpesaClient) apiRequest(endpoint, method string, payload interface{}, a
     }
     defer res.Body.Close()
 
+    fmt.Printf("Debug: request status of this thing is %v", res.Status)
+
     responseData, err := io.ReadAll(res.Body)
     if err != nil {
         return nil, err
@@ -253,4 +255,8 @@ func (m *MpesaClient) handleError(err error) {
     if err != nil {
         m.logger.Error("MpesaClient Error: %v", err.Error())
     }
+}
+
+func (m *MpesaClient) delcodeResponse(response map[string]interface{}) {
+
 }

@@ -31,6 +31,6 @@ type AccountBalanceRequest struct {
     OriginatorConversationID string `json:"OriginatorConversationID"`
 }
 
-func (a *AccountBalanceRequest)FillDefaults() {
-    a.CommandID = "AccountBalance"
+type Response struct {
+
 }

@@ -2,8 +2,6 @@ package errors
 
 import (
 	"fmt"
-
-	"github.com/coleYab/mpesasdk/service"
 )
 
 type SDKError struct {
@@ -27,4 +25,6 @@ var (
 	AuthenticationError = func(msg string) *SDKError { return NewSDKError("AUTH_ERROR", msg) }
 	ValidationError     = func(msg string) *SDKError { return NewSDKError("VALIDATION_ERROR", msg) }
 	ProcessingError     = func(msg string) *SDKError { return NewSDKError("PROCESSING_ERROR", msg) }
+	EnviromentError     = func(msg string) *SDKError { return NewSDKError("ENVIROMENT_ERROR", msg) }
+	TimeoutError        = func(msg string) *SDKError { return NewSDKError("ENVIROMENT_ERROR", msg) }
 )
