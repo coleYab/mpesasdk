@@ -10,7 +10,7 @@ type SDKError struct {
 }
 
 func (e *SDKError) Error() string {
-    return fmt.Sprintf("%v Error: %v", e.code, e.message)
+    return fmt.Sprintf("%v: %v", e.code, e.message)
 }
 
 func NewSDKError(code, message string) *SDKError {

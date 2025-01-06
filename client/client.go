@@ -4,73 +4,64 @@ import (
 	"bytes"
 	"encoding/json"
 	"io"
-	"net/http"
 	"time"
-)
-
-const (
-    authTypeBearer = "Bearer"
-    authTypeBasic  = "Basic"
+	"net/http"
+	"github.com/coleYab/mpesasdk/utils"
+	"github.com/coleYab/mpesasdk/auth"
 )
 
 type HttpClient struct {
 	client *http.Client
-    maxRetries uint
-};
-
-func NewHttpClient(timeout, maxRetries uint) *HttpClient {
-    if timeout == 0 {
-        timeout = 1;
-    }
-
-    return &HttpClient{
-        client: &http.Client{
-            Timeout: time.Duration(timeout) * time.Second,
-        },
-
-        maxRetries: maxRetries,
-    }
+	auth   *auth.AuthorizationToken // dependency on AuthorizationToken for Bearer and Basic token
 }
 
-func (c *HttpClient) MakeRequest(url, method string, payload interface{}, authType string) ([]byte, error) {
-    var body io.Reader
-    if payload != nil {
-        jsonData, err := json.Marshal(payload)
-        if err != nil {
-            return nil, err
-        }
-        body = bytes.NewReader(jsonData)
-    }
-
-    req, err := http.NewRequest(method, url, body)
-    if err != nil {
-        return nil, err
-    }
-
-    req.Header.Add("Content-Type", "application/json")
-    switch authType {
-    case authTypeBearer:
-        authToken, err := getAuthorizationToken()
-        if err != nil {
-            return nil, err
-        }
-        req.Header.Add("Authorization", authToken)
-    case authTypeBasic:
-        req.SetBasicAuth(client.consumerKey, client.consumerSecret)
-    }
-
-    res, err := client.Do(req)
-    if err != nil {
-        return nil, err
-    }
-    defer res.Body.Close()
-
-    responseData, err := io.ReadAll(res.Body)
-    if err != nil {
-        return nil, err
-    }
-
-    return responseData, nil
+func NewHttpClient(timeout time.Duration, maxRetries uint, auth *auth.AuthorizationToken) *HttpClient {
+	return &HttpClient{
+		client: &http.Client{
+			Timeout: timeout,
+		},
+		auth: auth,
+	}
 }
 
+func (c *HttpClient) ApiRequest(env, endpoint, method string, payload interface{}, authType string) (*http.Response, error) {
+	url := utils.ConstructURL(env, endpoint)
 
+	var body io.Reader
+	if payload != nil {
+		jsonData, err := json.Marshal(payload)
+		if err != nil {
+			return nil, err
+		}
+		body = bytes.NewReader(jsonData)
+	}
+
+	req, err := http.NewRequest(method, url, body)
+	if err != nil {
+		return nil, err
+	}
+
+	req.Header.Add("Content-Type", "application/json")
+
+	// Handle authorization type
+	switch authType {
+	case auth.AuthTypeBearer:
+		// Use the AuthorizationToken to fetch the Bearer token
+        key, secret := c.auth.GetConsumerKeyAndSecret()
+		authToken, err := c.auth.GetAuthorizationToken(string(env), key, secret)
+		if err != nil {
+			return nil, err
+		}
+		req.Header.Add("Authorization", authToken)
+	case auth.AuthTypeBasic:
+		req.SetBasicAuth(c.auth.GetConsumerKeyAndSecret())
+	}
+
+	// Perform the API request
+	res, err := c.client.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}

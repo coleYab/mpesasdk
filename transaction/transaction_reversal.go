@@ -1,4 +1,14 @@
-package transaction;
+package transaction
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+
+	"github.com/coleYab/mpesasdk/common"
+	sdkError "github.com/coleYab/mpesasdk/errors"
+)
 
 // TransactionReversalRequest represents the parameters for reversing a transaction.
 // This is used to cancel or refund a transaction that has already been processed.
@@ -39,3 +49,35 @@ type TransactionReversalRequest struct {
     OriginatorConversationID string `json:"OriginatorConversationID"`
 }
 
+type TransactionReversalSuccessResponse  common.MpesaSuccessResponse
+
+func (t *TransactionReversalRequest) DecodeResponse(res *http.Response) (TransactionReversalSuccessResponse, error) {
+    bodyData, _ := io.ReadAll(res.Body)
+    responseData := TransactionReversalSuccessResponse{}
+    err := json.Unmarshal(bodyData, &responseData)
+    if err != nil {
+        return TransactionReversalSuccessResponse{}, err
+    }
+
+    if responseData.ResponseCode != "0" {
+        errorResponseData := common.MpesaErrorResponse{}
+        err := json.Unmarshal(bodyData, &errorResponseData)
+        if err != nil {
+            return TransactionReversalSuccessResponse{}, err
+        }
+        return TransactionReversalSuccessResponse{}, t.decodeError(errorResponseData)
+    }
+
+    return responseData, nil
+}
+
+func (t *TransactionReversalRequest) FillDefaults() {
+}
+
+func (t *TransactionReversalRequest) Validate() error {
+    return nil
+}
+
+func (t *TransactionReversalRequest) decodeError(e common.MpesaErrorResponse) error {
+    return sdkError.NewSDKError(e.ErrorCode, fmt.Sprintf("Request %v failed due to %v", e.RequestId, e.ErrorMessage))
+}
