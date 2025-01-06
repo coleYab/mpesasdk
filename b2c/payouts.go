@@ -1,4 +1,14 @@
-package mpesasdk;
+package b2c
+
+import (
+	"encoding/json"
+	"fmt"
+	"io"
+	"net/http"
+
+	"github.com/coleYab/mpesasdk/common"
+	sdkError "github.com/coleYab/mpesasdk/errors"
+)
 
 // B2CRequest defines the parameters for initiating a Business to Customer (B2C) payment.
 // This is used when an organization sends money to a customer.
@@ -10,7 +20,7 @@ type B2CRequest struct {
     SecurityCredential string `json:"SecurityCredential"`
 
     // CommandID defines the type of B2C transaction (e.g., SalaryPaymentCommandID).
-    CommandID CommandID `json:"CommandID"`
+    CommandID string `json:"CommandID"`
 
     // Amount is the amount to be sent to the customer.
     Amount uint `json:"Amount"`
@@ -37,4 +47,35 @@ type B2CRequest struct {
 }
 
 
+type B2CSuccessResponse  common.MpesaSuccessResponse
 
+func (b *B2CRequest) DecodeResponse(res *http.Response) (B2CSuccessResponse, error) {
+    bodyData, _ := io.ReadAll(res.Body)
+    responseData := B2CSuccessResponse{}
+    err := json.Unmarshal(bodyData, &responseData)
+    if err != nil {
+        return B2CSuccessResponse{}, err
+    }
+
+    if responseData.ResponseCode != "0" {
+        errorResponseData := common.MpesaErrorResponse{}
+        err := json.Unmarshal(bodyData, &errorResponseData)
+        if err != nil {
+            return B2CSuccessResponse{}, err
+        }
+        return B2CSuccessResponse{}, b.decodeError(errorResponseData)
+    }
+
+    return responseData, nil
+}
+
+func (b *B2CRequest) FillDefaults() {
+}
+
+func (b *B2CRequest) Validate() error {
+    return nil
+}
+
+func (b *B2CRequest) decodeError(e common.MpesaErrorResponse) error {
+    return sdkError.NewSDKError(e.ErrorCode, fmt.Sprintf("Request %v failed due to %v", e.RequestId, e.ErrorMessage))
+}
