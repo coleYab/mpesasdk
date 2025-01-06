@@ -59,11 +59,11 @@ type STKPushPaymentRequest struct {
 }
 
 type STKPushRequestSuccessResponse struct {
-    MerchantRequestID string
-    CheckoutRequestID string
-    ResponseCode string
-    ResponseDescription string
-    CustomerMessage string
+    MerchantRequestID string `json:"MerchantRequestID"`
+    CheckoutRequestID string `json:"CheckoutRequestID"`
+    ResponseCode string `json:"ResponseCode"`
+    ResponseDescription string `json:"ResponseDescription"`
+    CustomerMessage string `json:"CustomerMessage"`
 }
 
 type STKPushRequestError STKPushRequestSuccessResponse
