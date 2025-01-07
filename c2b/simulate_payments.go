@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 
 	"github.com/coleYab/mpesasdk/common"
 	sdkError "github.com/coleYab/mpesasdk/errors"
@@ -15,7 +16,7 @@ import (
 // Only on simulation mode
 type SimulateCustomerInititatedPayment struct {
     // Unique Command ID	String	CustomerPayBillOnline
-    CommandID string `json:"CommandID"`
+    CommandID common.CommandId `json:"CommandID"`
     // 	Transaction Amount	String - Numeric	20
     Amount uint64 `json:"Amount"`
     // Phone number of the customer	String - Numeric	0700100100
@@ -53,6 +54,12 @@ func (s *SimulateCustomerInititatedPayment) FillDefaults() {
 }
 
 func (s *SimulateCustomerInititatedPayment) Validate() error {
+    validCommands := []common.CommandId{
+        common.CustomerPayBillOnlineCommand, common.CustomerBuyGoodsOnlineCommand,
+    }
+    if !slices.Contains(validCommands, s.CommandID) {
+        return sdkError.ValidationError("unknown commandID")
+    }
     return nil
 }
 

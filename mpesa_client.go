@@ -13,7 +13,6 @@ import (
     "github.com/coleYab/mpesasdk/common"
     "github.com/coleYab/mpesasdk/service"
     "github.com/coleYab/mpesasdk/transaction"
-    "github.com/coleYab/mpesasdk/utils"
 )
 
 type MpesaClient struct {
@@ -69,7 +68,7 @@ func executeRequest[T any](m *MpesaClient, req common.MpesaRequest, endpoint, me
     // Populate defaults
     req.FillDefaults()
 
-    response, err := m.client.ApiRequest(string(m.env), endpoint, method, req, authType)
+    response, err := m.client.ApiRequest(m.env, endpoint, method, req, authType)
     if err != nil {
         return *new(T), err
     }
@@ -107,8 +106,7 @@ func (m *MpesaClient) AccountBalance(req account.AccountBalanceRequest) (account
 }
 
 func (m *MpesaClient) STKPushPaymentRequest(passkey string, req c2b.STKPushPaymentRequest) (c2b.STKPushRequestSuccessResponse, error) {
-    // TODO(coleYab): refactor this to be in fill defaults
-    req.Timestamp, req.Password = utils.GenerateTimestampAndPassword(req.BusinessShortCode, passkey)
+    req.SetPasskey(passkey)
     endpoint := "/mpesa/stkpush/v1/processrequest"
     return executeRequest[c2b.STKPushRequestSuccessResponse](m, &req, endpoint, http.MethodPost, auth.AuthTypeBearer)
 }

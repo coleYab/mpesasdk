@@ -20,7 +20,7 @@ type TransactionReversalRequest struct {
     SecurityCredential string `json:"SecurityCredential"`
 
     // CommandID must be "TransactionReversal" for a reversal request.
-    CommandID string `json:"CommandID"`
+    CommandID common.CommandId `json:"CommandID"`
 
     // TransactionID is the ID of the transaction to be reversed.
     TransactionID string `json:"TransactionID"`
@@ -32,7 +32,7 @@ type TransactionReversalRequest struct {
     ReceiverParty string `json:"ReceiverParty"`
 
     // RecieverIdentifierType defines the type of organization receiving the transaction.
-    RecieverIdentifierType string `json:"RecieverIdentifierType"`
+    RecieverIdentifierType common.IdentifierType `json:"RecieverIdentifierType"`
 
     // QueueTimeOutURL is the URL for timeout notifications.
     QueueTimeOutURL string `json:"QueueTimeOutURL"`

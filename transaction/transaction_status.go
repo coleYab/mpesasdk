@@ -14,10 +14,10 @@ import (
 // It is used to check the status of a previously initiated transaction.
 type TransactionStatusRequest struct {
 	// CommandID is the type of request (usually "TransactionStatusQueryCommandID").
-	CommandID string `json:"CommandID"`
+	CommandID common.CommandId `json:"CommandID"`
 
 	// IdentifierType defines the type of identifier used for PartyA (e.g., "Shortcode").
-	IdentifierType string `json:"IdentifierType"`
+	IdentifierType common.IdentifierType `json:"IdentifierType"`
 
 	// Initiator is the username used to authenticate the transaction query.
 	Initiator string `json:"Initiator"`
@@ -70,7 +70,9 @@ func (t *TransactionStatusRequest) DecodeResponse(res *http.Response) (interface
 }
 
 func (t *TransactionStatusRequest) FillDefaults() {
+    t.CommandID = common.TransactionStatusCommand
 }
+
 
 func (t *TransactionStatusRequest) Validate() error {
 	return nil

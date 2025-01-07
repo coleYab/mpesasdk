@@ -5,9 +5,11 @@ import (
     "fmt"
     "io"
     "net/http"
+    "slices"
 
     "github.com/coleYab/mpesasdk/common"
     sdkError "github.com/coleYab/mpesasdk/errors"
+    "github.com/coleYab/mpesasdk/utils"
 )
 
 // RegisterC2BURLRequest represents the parameters for registering a C2B validation and confirmation URL.
@@ -17,10 +19,10 @@ type RegisterC2BURLRequest struct {
     ShortCode string `json:"ShortCode"`
 
     // ResponseType determines how M-Pesa handles unresponsive validation URLs ("Completed" or "Cancelled").
-    ResponseType string `json:"ResponseType"`
+    ResponseType common.ResponseType `json:"ResponseType"`
 
     // Use “RegisterURL” to differentiate the service from other services.	String	RegisterURL
-    CommandID string `json:"CommandID"`
+    CommandID common.CommandId `json:"CommandID"`
 
     // ConfirmationURL is the URL to receive payment completion notifications.
     ConfirmationURL string `json:"ConfirmationURL"`
@@ -44,7 +46,7 @@ func (s *RegisterC2BURLRequest) DecodeResponse(res *http.Response) (interface{},
     responseData := registerUrlResponse{}
     err := json.Unmarshal(bodyData, &responseData)
     if err != nil {
-        return RegisterC2BURLSuccessResponse{}, err
+        return RegisterC2BURLSuccessResponse{}, sdkError.ProcessingError(err.Error())
     }
 
     switch responseData.Header.ResponseCode {
@@ -54,14 +56,39 @@ func (s *RegisterC2BURLRequest) DecodeResponse(res *http.Response) (interface{},
             ResponseDescription: responseData.Header.ResponseMessage,
         }, nil
     case "":
+        // In this case an error with the http.Response.StatusCode != 200 so we need the defult error handling mechanism
+        errorResponse := common.MpesaErrorResponse{}
+        err := json.Unmarshal(bodyData, &errorResponse)
+        if err != nil {
+            return RegisterC2BURLSuccessResponse{}, sdkError.ProcessingError(err.Error())
+        }
+        responseData.Header.ResponseCode = errorResponse.ErrorCode
+        responseData.Header.ResponseMessage = errorResponse.ErrorMessage
+        fallthrough // use the default error handling after that to improve consistency
+    default:
         return RegisterC2BURLSuccessResponse{}, s.decodeError(responseData)
     }
 }
+
 func (t *RegisterC2BURLRequest) FillDefaults() {
+    t.CommandID = common.RegisterURLCommand
 }
 
 func (t *RegisterC2BURLRequest) Validate() error {
-	return nil
+    validResponseType := []common.ResponseType{common.CompletedResponse, common.CancelledResponse}
+    if !slices.Contains(validResponseType, t.ResponseType) {
+        return sdkError.ValidationError("invalid response type " + string(t.ResponseType))
+    }
+
+    if err := utils.ValidateURL(t.ConfirmationURL); err != nil {
+        return err
+    }
+
+    if err := utils.ValidateURL(t.ValidationURL); err != nil {
+        return err
+    }
+
+    return nil
 }
 
 func (s *RegisterC2BURLRequest) decodeError(e registerUrlResponse) error {

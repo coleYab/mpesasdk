@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/coleYab/mpesasdk/auth"
-	"github.com/coleYab/mpesasdk/common"
 	"github.com/coleYab/mpesasdk/utils"
 )
 
@@ -26,13 +25,12 @@ func NewHttpClient(timeout time.Duration, maxRetries uint, auth *auth.Authorizat
 		client: &http.Client{
 			Timeout: timeout,
 		},
-        maxRetries: maxRetries,
 		auth: auth,
 	}
 }
 
 
-func (c *HttpClient) ApiRequest(env common.Enviroment, endpoint, method string, payload interface{}, authType string) (*http.Response, error) {
+func (c *HttpClient) ApiRequest(env, endpoint, method string, payload interface{}, authType string) (*http.Response, error) {
 	url := utils.ConstructURL(env, endpoint)
 
 	var body io.Reader
@@ -61,7 +59,7 @@ func (c *HttpClient) ApiRequest(env common.Enviroment, endpoint, method string, 
 	return res, err
 }
 
-func (c *HttpClient) makeRequest(url, method string, body io.Reader, authType string, env common.Enviroment) (*http.Response, error) {
+func (c *HttpClient) makeRequest(url, method string, body io.Reader, authType, env string) (*http.Response, error) {
 	req, err := http.NewRequest(method, url, body)
 	if err != nil {
 		return nil, err

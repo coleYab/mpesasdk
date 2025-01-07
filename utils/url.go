@@ -3,11 +3,14 @@ package utils
 import (
 	"fmt"
 	"net/url"
+
+	"github.com/coleYab/mpesasdk/common"
+	sdkError "github.com/coleYab/mpesasdk/errors"
 )
 
-func ConstructURL(env, endpoint string) string {
+func ConstructURL(env common.Enviroment, endpoint string) string {
     baseURL := "https://apisandbox.safaricom.et"
-    if env == "PRODUCTION" {
+    if env == common.PRODUCTION {
         baseURL = "https://api.safaricom.et"
     }
     return fmt.Sprintf("%s%s", baseURL, endpoint)
@@ -16,11 +19,11 @@ func ConstructURL(env, endpoint string) string {
 func ValidateURL(rawUrl string) error {
 	parsedUrl, err := url.Parse(rawUrl)
     if err != nil {
-        return err
+        return sdkError.ValidationError("url parsing failed" + err.Error())
     }
 
     if parsedUrl.Scheme != "https" {
-        return fmt.Errorf("Error: url scheme must be https got %v", parsedUrl.Scheme);
+        return sdkError.ValidationError("invalid URL scheme expected https")
     }
 
 	return nil

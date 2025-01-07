@@ -5,9 +5,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"slices"
 
 	"github.com/coleYab/mpesasdk/common"
 	sdkError "github.com/coleYab/mpesasdk/errors"
+	"github.com/coleYab/mpesasdk/utils"
 )
 
 // B2CRequest defines the parameters for initiating a Business to Customer (B2C) payment.
@@ -20,7 +22,7 @@ type B2CRequest struct {
     SecurityCredential string `json:"SecurityCredential"`
 
     // CommandID defines the type of B2C transaction (e.g., SalaryPaymentCommandID).
-    CommandID string `json:"CommandID"`
+    CommandID common.CommandId `json:"CommandID"`
 
     // Amount is the amount to be sent to the customer.
     Amount uint `json:"Amount"`
@@ -53,14 +55,14 @@ func(b *B2CRequest) DecodeResponse(res *http.Response) (interface{}, error) {
     responseData := B2CSuccessResponse{}
     err := json.Unmarshal(bodyData, &responseData)
     if err != nil {
-        return B2CSuccessResponse{}, err
+        return B2CSuccessResponse{}, sdkError.ProcessingError(err.Error())
     }
 
     if responseData.ResponseCode != "0" {
         errorResponseData := common.MpesaErrorResponse{}
         err := json.Unmarshal(bodyData, &errorResponseData)
         if err != nil {
-            return B2CSuccessResponse{}, err
+            return B2CSuccessResponse{}, sdkError.ProcessingError(err.Error())
         }
         return B2CSuccessResponse{}, b.decodeError(errorResponseData)
     }
@@ -72,6 +74,19 @@ func (b *B2CRequest) FillDefaults() {
 }
 
 func (b *B2CRequest) Validate() error {
+    validCommands := []common.CommandId{common.BusinessPaymentCommand, common.SalaryPaymentCommand, common.PromotionPaymentCommand}
+    if !slices.Contains(validCommands, b.CommandID) {
+        return sdkError.ValidationError("unknown CommandID " + string(b.CommandID))
+    }
+
+    if err := utils.ValidateURL(b.QueueTimeOutURL); err != nil {
+        return err
+    }
+
+    if err := utils.ValidateURL(b.ResultURL); err != nil {
+        return err
+    }
+
     return nil
 }
 

@@ -8,6 +8,8 @@ import (
 	"net/http"
 	"strconv"
 	"time"
+
+	"github.com/coleYab/mpesasdk/common"
 	"github.com/coleYab/mpesasdk/utils"
 )
 
@@ -45,7 +47,7 @@ func (a *AuthorizationToken) GetConsumerKeyAndSecret() (string, string) {
     return a.consumerKey, a.consumerSecret
 }
 
-func (a *AuthorizationToken) GetAuthorizationToken(env string, key, secret string) (string, error) {
+func (a *AuthorizationToken) GetAuthorizationToken(env common.Enviroment, key, secret string) (string, error) {
 	url := utils.ConstructURL(env, "/v1/token/generate?grant_type=client_credentials")
 	method := "GET"
 
