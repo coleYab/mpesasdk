@@ -61,7 +61,7 @@ if err != nil {
 ```go
 response, err := client.RegisterNewURL(c2b.RegisterC2BURLRequest{
     ShortCode:       123456,
-    ResponseType:    c2b.ResponseTypeCompleted,
+    ResponseType:    c2b.CompletedResponse,
     ConfirmationURL: "https://yourdomain.com/confirmation",
     ValidationURL:   "https://yourdomain.com/validation",
 })
@@ -71,7 +71,7 @@ response, err := client.RegisterNewURL(c2b.RegisterC2BURLRequest{
 
 ```go
 response, err := client.SimulateCustomerInitiatedPayment(c2b.SimulateCustomerInititatedPayment{
-    ShortCode:     "123456",
+    ShortCode:     "123456", 
     BillRefNumber: "INV123",
     Amount:        500,
     Msisdn:        "254700123456",
@@ -84,7 +84,7 @@ response, err := client.SimulateCustomerInitiatedPayment(c2b.SimulateCustomerIni
 response, err := client.MakeB2CPaymentRequest(b2c.B2CRequest{
     InitiatorName:      "apiuser",
     SecurityCredential: "<security_credential>",
-    CommandID:          b2c.BusinessPayment,
+    CommandID:          b2c.BusinessPayment, 
     Amount:             1000,
     PartyA:             600000,
     PartyB:             254700123456,
@@ -100,7 +100,7 @@ response, err := client.MakeB2CPaymentRequest(b2c.B2CRequest{
 response, err := client.CheckTransactionStatus(transaction.TransactionStatusRequest{
     TransactionID: "LKXXXX1234",
     PartyA:        600000,
-    IdentifierType: 1,
+    IdentifierType: common.MsisdnIdentifierType, 
     ResultURL:     "https://yourdomain.com/result",
     QueueTimeOutURL: "https://yourdomain.com/timeout",
     Remarks:        "Checking status",
@@ -112,7 +112,7 @@ response, err := client.CheckTransactionStatus(transaction.TransactionStatusRequ
 ```go
 response, err := client.AccountBalance(account.AccountBalanceRequest{
     PartyA:           600000,
-    IdentifierType:   4,
+    IdentifierType:   common.ShortCodeIdentifierType,
     Remarks:          "Account Balance",
     ResultURL:        "https://yourdomain.com/result",
     QueueTimeOutURL:  "https://yourdomain.com/timeout",
@@ -126,7 +126,7 @@ response, err := client.ReverseTransaction(transaction.TransactionReversalReques
     TransactionID:     "LKXXXX1234",
     PartyA:            600000,
     ReceiverParty:     254700123456,
-    IdentifierType:    4,
+    IdentifierType:    common.ShortCodeIdentifierType,
     Amount:            1000,
     Remarks:           "Reversing transaction",
     ResultURL:         "https://yourdomain.com/result",
