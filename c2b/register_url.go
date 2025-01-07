@@ -31,7 +31,7 @@ type RegisterC2BURLRequest struct {
 
 type registerUrlResponse struct {
     Header struct {
-        ResponseCode int `json:"responseCode"`
+        ResponseCode string `json:"responseCode"`
         ResponseMessage string `json:"responseMessage"`
         CustomerMessage string `json:"customerMessage"`
     } `json:"header"`
@@ -39,7 +39,7 @@ type registerUrlResponse struct {
 
 type RegisterC2BURLSuccessResponse common.MpesaSuccessResponse
 
-func (s *RegisterC2BURLRequest) DecodeResponse(res *http.Response) (RegisterC2BURLSuccessResponse, error) {
+func (s *RegisterC2BURLRequest) DecodeResponse(res *http.Response) (interface{}, error) {
     bodyData, _ :=  io.ReadAll(res.Body)
     responseData := registerUrlResponse{}
     err := json.Unmarshal(bodyData, &responseData)
@@ -48,14 +48,20 @@ func (s *RegisterC2BURLRequest) DecodeResponse(res *http.Response) (RegisterC2BU
     }
 
     switch responseData.Header.ResponseCode {
-    case 200:
+    case "200":
         return RegisterC2BURLSuccessResponse{
             ResponseCode: string(responseData.Header.ResponseCode),
             ResponseDescription: responseData.Header.ResponseMessage,
         }, nil
-    default:
+    case "":
         return RegisterC2BURLSuccessResponse{}, s.decodeError(responseData)
     }
+}
+func (t *RegisterC2BURLRequest) FillDefaults() {
+}
+
+func (t *RegisterC2BURLRequest) Validate() error {
+	return nil
 }
 
 func (s *RegisterC2BURLRequest) decodeError(e registerUrlResponse) error {

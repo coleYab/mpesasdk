@@ -49,7 +49,7 @@ type TransactionStatusRequest struct {
 
 type TransactionStatusSuccessResponse common.MpesaSuccessResponse
 
-func (t *TransactionStatusRequest) DecodeResponse(res *http.Response) (TransactionStatusSuccessResponse, error) {
+func (t *TransactionStatusRequest) DecodeResponse(res *http.Response) (interface{}, error) {
 	bodyData, _ := io.ReadAll(res.Body)
 	responseData := TransactionStatusSuccessResponse{}
 	err := json.Unmarshal(bodyData, &responseData)

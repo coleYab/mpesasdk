@@ -2,8 +2,8 @@ package common
 
 import "net/http"
 
-type MpesaRequest[T any] interface {
-	DecodeResponse(res *http.Response) (T, error)
+type MpesaRequest interface {
+    DecodeResponse(res *http.Response) (interface{}, error)
     Validate() error
     FillDefaults()
 }

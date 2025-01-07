@@ -1,32 +1,29 @@
 package mpesasdk
 
 import (
-	"errors"
-	"net/http"
-	"time"
+    "errors"
+    "net/http"
+    "time"
 
-	"github.com/coleYab/mpesasdk/account"
-	"github.com/coleYab/mpesasdk/auth"
-	"github.com/coleYab/mpesasdk/b2c"
-	"github.com/coleYab/mpesasdk/c2b"
-	"github.com/coleYab/mpesasdk/client"
-	"github.com/coleYab/mpesasdk/common"
-	"github.com/coleYab/mpesasdk/service"
-	"github.com/coleYab/mpesasdk/transaction"
-	"github.com/coleYab/mpesasdk/utils"
+    "github.com/coleYab/mpesasdk/account"
+    "github.com/coleYab/mpesasdk/auth"
+    "github.com/coleYab/mpesasdk/b2c"
+    "github.com/coleYab/mpesasdk/c2b"
+    "github.com/coleYab/mpesasdk/client"
+    "github.com/coleYab/mpesasdk/common"
+    "github.com/coleYab/mpesasdk/service"
+    "github.com/coleYab/mpesasdk/transaction"
+    "github.com/coleYab/mpesasdk/utils"
 )
 
-// TODO(coleYab): add suppport for more data validation and pagination
 type MpesaClient struct {
-    consumerKey         string
-    consumerSecret      string
-    env                 common.Enviroment
-    client              *client.HttpClient
-    logger              *service.Logger
+    consumerKey    string
+    consumerSecret string
+    env            common.Enviroment
+    client         *client.HttpClient
+    logger         *service.Logger
 }
 
-// This is a function that will create the MpesaClient that will enable the users to
-// interact with the mpesa api
 func NewMpesaClient(
     consumerKey, consumerSecret string,
     env common.Enviroment,
@@ -43,88 +40,81 @@ func NewMpesaClient(
     }
 
     if timeout <= 0 {
-        timeout = 5
+        timeout = 5 * time.Second
     }
 
-    if maxRetries < 0 {
+    if maxRetries == 0 {
         maxRetries = 1
     }
 
-    auth := auth.NewAuthorizationToken(consumerKey, consumerSecret);
+    auth := auth.NewAuthorizationToken(consumerKey, consumerSecret)
     httpClient := client.NewHttpClient(timeout, maxRetries, auth)
     logger := service.NewLogger(logLevel)
+
     return &MpesaClient{
-        consumerKey:        consumerKey,
-        consumerSecret:     consumerSecret,
-        env:                env,
-        client:             httpClient,
-        logger:             logger,
+        consumerKey:    consumerKey,
+        consumerSecret: consumerSecret,
+        env:            env,
+        client:         httpClient,
+        logger:         logger,
     }, nil
+}
+
+func executeRequest[T any](m *MpesaClient, req common.MpesaRequest, endpoint, method string, authType string) (T, error) {
+    // Validate the request
+    if err := req.Validate(); err != nil {
+        return *new(T), err
+    }
+
+    // Populate defaults
+    req.FillDefaults()
+
+    response, err := m.client.ApiRequest(string(m.env), endpoint, method, req, authType)
+    if err != nil {
+        return *new(T), err
+    }
+    defer response.Body.Close()
+
+    // Decode the response and type assert the response failing is impossible
+    res, err := req.DecodeResponse(response)
+    castedResponse, _ := res.(T)
+    return castedResponse, err
 }
 
 func (m *MpesaClient) RegisterNewURL(req c2b.RegisterC2BURLRequest) (c2b.RegisterC2BURLSuccessResponse, error) {
     endpoint := "/v1/c2b-register-url/register?apikey=" + m.consumerKey
-    response, err := m.apiRequest(endpoint, "POST", req, auth.AuthTypeNone)
-    if err != nil {
-        return c2b.RegisterC2BURLSuccessResponse{}, err
-    }
-
-    return req.DecodeResponse(response)
-}
-
-func (m *MpesaClient) SimulateCustomerInititatedPayment(req c2b.SimulateCustomerInititatedPayment) (c2b.SimulatePaymentSuccessResponse, error) {
-    response, err := m.apiRequest("/mpesa/b2c/simulatetransaction/v1/request", "POST", req, auth.AuthTypeBearer)
-    if err != nil {
-        return c2b.SimulatePaymentSuccessResponse{}, err
-    }
-
-    return req.DecodeResponse(response)
+    return executeRequest[c2b.RegisterC2BURLSuccessResponse](m, &req, endpoint, http.MethodPost, auth.AuthTypeNone)
 }
 
 func (m *MpesaClient) MakeB2CPaymentRequest(req b2c.B2CRequest) (b2c.B2CSuccessResponse, error) {
-    response, err := m.apiRequest("/mpesa/b2c/v2/paymentrequest", "POST", req, auth.AuthTypeBearer)
-    if err != nil {
-        return b2c.B2CSuccessResponse{}, err
-    }
+    endpoint := "/mpesa/b2c/v2/paymentrequest"
+    return executeRequest[b2c.B2CSuccessResponse](m, &req, endpoint, http.MethodPost, auth.AuthTypeBearer)
+}
 
-    return req.DecodeResponse(response)
+func (m *MpesaClient) SimulateCustomerInitiatedPayment(req c2b.SimulateCustomerInititatedPayment) (c2b.SimulatePaymentSuccessResponse, error) {
+    endpoint := "/mpesa/c2b/simulate"
+    return executeRequest[c2b.SimulatePaymentSuccessResponse](m, &req, endpoint, http.MethodPost, auth.AuthTypeBearer)
 }
 
 func (m *MpesaClient) CheckTransactionStatus(req transaction.TransactionStatusRequest) (transaction.TransactionStatusSuccessResponse, error) {
-    response, err := m.apiRequest("/mpesa/transactionstatus/v1/query", "POST", req, auth.AuthTypeBearer)
-    if err != nil {
-        return transaction.TransactionStatusSuccessResponse{}, err
-    }
-    return req.DecodeResponse(response)
+    endpoint := "/mpesa/transactionstatus/v1/query"
+    return executeRequest[transaction.TransactionStatusSuccessResponse](m, &req, endpoint, http.MethodPost, auth.AuthTypeBearer)
 }
 
 func (m *MpesaClient) AccountBalance(req account.AccountBalanceRequest) (account.AccountBalanceSuccessResponse, error) {
-    response, err := m.apiRequest("/mpesa/accountbalance/v2/query", "POST", req, auth.AuthTypeBearer)
-    if err != nil {
-        return account.AccountBalanceSuccessResponse{}, err
-    }
-    return req.DecodeResponse(response)
+    endpoint := "/mpesa/accountbalance/v1/query"
+    return executeRequest[account.AccountBalanceSuccessResponse](m, &req, endpoint, http.MethodPost, auth.AuthTypeBearer)
 }
 
 func (m *MpesaClient) STKPushPaymentRequest(passkey string, req c2b.STKPushPaymentRequest) (c2b.STKPushRequestSuccessResponse, error) {
+    // TODO(coleYab): refactor this to be in fill defaults
     req.Timestamp, req.Password = utils.GenerateTimestampAndPassword(req.BusinessShortCode, passkey)
-    response, err := m.apiRequest("/mpesa/stkpush/v3/processrequest", "POST", req, auth.AuthTypeBearer)
-    if err != nil {
-        return c2b.STKPushRequestSuccessResponse{}, err
-    }
-
-    return req.DecodeResponse(response)
+    endpoint := "/mpesa/stkpush/v1/processrequest"
+    return executeRequest[c2b.STKPushRequestSuccessResponse](m, &req, endpoint, http.MethodPost, auth.AuthTypeBearer)
 }
 
 func (m *MpesaClient) ReverseTransaction(req transaction.TransactionReversalRequest) (transaction.TransactionReversalSuccessResponse, error) {
-    response, err := m.apiRequest("/mpesa/reversal/v2/request", "POST", req, auth.AuthTypeBearer)
-    if err != nil {
-        return transaction.TransactionReversalSuccessResponse{}, err
-    }
-    return req.DecodeResponse(response)
-}
-
-func (m *MpesaClient) apiRequest(endpoint, method string, payload interface{}, authType string) (*http.Response, error) {
-    return m.client.ApiRequest(string(m.env), endpoint, method, payload, authType)
+    endpoint := "/mpesa/reversal/v1/request"
+    return executeRequest[transaction.TransactionReversalSuccessResponse](m, &req, endpoint, http.MethodPost, auth.AuthTypeBearer)
 }
 

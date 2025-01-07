@@ -68,7 +68,7 @@ type STKPushRequestSuccessResponse struct {
 
 type STKPushRequestError STKPushRequestSuccessResponse
 
-func (s *STKPushPaymentRequest) DecodeResponse(res *http.Response) (STKPushRequestSuccessResponse, error) {
+func (s *STKPushPaymentRequest) DecodeResponse(res *http.Response) (interface{}, error) {
     bodyData, _ := io.ReadAll(res.Body)
     responseData := STKPushRequestSuccessResponse{}
     err := json.Unmarshal(bodyData, &responseData)
@@ -82,11 +82,12 @@ func (s *STKPushPaymentRequest) DecodeResponse(res *http.Response) (STKPushReque
 
     return responseData, nil
 }
-
-func (a *STKPushPaymentRequest) GetResponseStatus(responseData map[string]interface{}) string {
-    return ""
+func (t *STKPushPaymentRequest) FillDefaults() {
 }
 
+func (t *STKPushPaymentRequest) Validate() error {
+    return nil
+}
 func (s *STKPushPaymentRequest) decodeError(e STKPushRequestError) error {
     errorCode := e.ResponseCode
     return sdkError.NewSDKError(

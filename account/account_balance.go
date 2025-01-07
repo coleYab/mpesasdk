@@ -43,7 +43,7 @@ type AccountBalanceRequest struct {
 
 type AccountBalanceSuccessResponse common.MpesaSuccessResponse
 
-func (a *AccountBalanceRequest) DecodeResponse(res *http.Response) (AccountBalanceSuccessResponse, error) {
+func (a *AccountBalanceRequest) DecodeResponse(res *http.Response) (interface{}, error) {
     bodyData, _ := io.ReadAll(res.Body)
     responseData := AccountBalanceSuccessResponse{}
     err := json.Unmarshal(bodyData, &responseData)

@@ -46,10 +46,9 @@ type B2CRequest struct {
     OriginatorConversationID string `json:"OriginatorConversationID"`
 }
 
-
 type B2CSuccessResponse  common.MpesaSuccessResponse
 
-func (b *B2CRequest) DecodeResponse(res *http.Response) (B2CSuccessResponse, error) {
+func(b *B2CRequest) DecodeResponse(res *http.Response) (interface{}, error) {
     bodyData, _ := io.ReadAll(res.Body)
     responseData := B2CSuccessResponse{}
     err := json.Unmarshal(bodyData, &responseData)

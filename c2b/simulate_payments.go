@@ -29,7 +29,7 @@ type SimulateCustomerInititatedPayment struct {
 
 type SimulatePaymentSuccessResponse  common.MpesaSuccessResponse
 
-func (s *SimulateCustomerInititatedPayment) DecodeResponse(res *http.Response) (SimulatePaymentSuccessResponse, error) {
+func (s *SimulateCustomerInititatedPayment) DecodeResponse(res *http.Response) (interface{}, error) {
     bodyData, _ := io.ReadAll(res.Body)
     responseData := SimulatePaymentSuccessResponse{}
     err := json.Unmarshal(bodyData, &responseData)

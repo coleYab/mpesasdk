@@ -51,7 +51,7 @@ type TransactionReversalRequest struct {
 
 type TransactionReversalSuccessResponse  common.MpesaSuccessResponse
 
-func (t *TransactionReversalRequest) DecodeResponse(res *http.Response) (TransactionReversalSuccessResponse, error) {
+func (t *TransactionReversalRequest) DecodeResponse(res *http.Response) (interface{}, error) {
     bodyData, _ := io.ReadAll(res.Body)
     responseData := TransactionReversalSuccessResponse{}
     err := json.Unmarshal(bodyData, &responseData)
