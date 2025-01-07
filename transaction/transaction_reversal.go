@@ -1,3 +1,5 @@
+// Package transaction provides functionality for managing M-Pesa transactions,
+// including querying transaction status and reversing completed transactions.
 package transaction
 
 import (
@@ -11,73 +13,86 @@ import (
 )
 
 // TransactionReversalRequest represents the parameters for reversing a transaction.
-// This is used to cancel or refund a transaction that has already been processed.
+// It is used to cancel or refund a previously completed transaction.
+//
+// Fields:
+//   - Initiator: The username of the API operator initiating the reversal.
+//   - SecurityCredential: The encrypted password for the initiator.
+//   - CommandID: Must be "TransactionReversal" for a valid reversal request.
+//   - TransactionID: The ID of the transaction to be reversed.
+//   - Amount: The amount to be reversed.
+//   - ReceiverParty: The organization receiving the reversed funds.
+//   - RecieverIdentifierType: Defines the type of organization receiving the transaction.
+//   - QueueTimeOutURL: URL for timeout notifications.
+//   - ResultURL: URL to receive the result of the reversal.
+//   - Remarks: Optional comments about the reversal request.
+//   - Occasion: Optional additional details about the transaction.
+//   - OriginatorConversationID: Unique identifier for the originating transaction.
 type TransactionReversalRequest struct {
-    // Initiator is the username of the API operator initiating the reversal.
-    Initiator string `json:"Initiator"`
-
-    // SecurityCredential is the encrypted password for the operator initiating the reversal.
-    SecurityCredential string `json:"SecurityCredential"`
-
-    // CommandID must be "TransactionReversal" for a reversal request.
-    CommandID common.CommandId `json:"CommandID"`
-
-    // TransactionID is the ID of the transaction to be reversed.
-    TransactionID string `json:"TransactionID"`
-
-    // Amount is the amount to be reversed.
-    Amount uint64 `json:"Amount"`
-
-    // ReceiverParty is the organization receiving the funds.
-    ReceiverParty string `json:"ReceiverParty"`
-
-    // RecieverIdentifierType defines the type of organization receiving the transaction.
-    RecieverIdentifierType common.IdentifierType `json:"RecieverIdentifierType"`
-
-    // QueueTimeOutURL is the URL for timeout notifications.
-    QueueTimeOutURL string `json:"QueueTimeOutURL"`
-
-    // ResultURL is the URL to receive the result of the reversal.
-    ResultURL string `json:"ResultURL"`
-
-    // Remarks are optional comments to include with the reversal.
-    Remarks string `json:"Remarks"`
-
-    // Occasion is an optional field for additional details.
-    Occasion string `json:"Occasion"`
-
-    OriginatorConversationID string `json:"OriginatorConversationID"`
+	Initiator               string                   `json:"Initiator"`
+	SecurityCredential      string                   `json:"SecurityCredential"`
+	CommandID               common.CommandId         `json:"CommandID"`
+	TransactionID           string                   `json:"TransactionID"`
+	Amount                  uint64                   `json:"Amount"`
+	ReceiverParty           string                   `json:"ReceiverParty"`
+	RecieverIdentifierType  common.IdentifierType    `json:"RecieverIdentifierType"`
+	QueueTimeOutURL         string                   `json:"QueueTimeOutURL"`
+	ResultURL               string                   `json:"ResultURL"`
+	Remarks                 string                   `json:"Remarks"`
+	Occasion                string                   `json:"Occasion"`
+	OriginatorConversationID string                  `json:"OriginatorConversationID"`
 }
 
-type TransactionReversalSuccessResponse  common.MpesaSuccessResponse
+// TransactionReversalSuccessResponse represents a successful response for a reversal request.
+type TransactionReversalSuccessResponse common.MpesaSuccessResponse
 
+// DecodeResponse decodes the HTTP response for a transaction reversal request.
+//
+// Parameters:
+//   - res: The HTTP response object.
+//
+// Returns:
+//   - An instance of TransactionReversalSuccessResponse if the reversal was successful.
+//   - An error if the response indicates a failure or the decoding fails.
 func (t *TransactionReversalRequest) DecodeResponse(res *http.Response) (interface{}, error) {
-    bodyData, _ := io.ReadAll(res.Body)
-    responseData := TransactionReversalSuccessResponse{}
-    err := json.Unmarshal(bodyData, &responseData)
-    if err != nil {
-        return TransactionReversalSuccessResponse{}, err
-    }
+	bodyData, _ := io.ReadAll(res.Body)
+	responseData := TransactionReversalSuccessResponse{}
+	err := json.Unmarshal(bodyData, &responseData)
+	if err != nil {
+		return TransactionReversalSuccessResponse{}, err
+	}
 
-    if responseData.ResponseCode != "0" {
-        errorResponseData := common.MpesaErrorResponse{}
-        err := json.Unmarshal(bodyData, &errorResponseData)
-        if err != nil {
-            return TransactionReversalSuccessResponse{}, err
-        }
-        return TransactionReversalSuccessResponse{}, t.decodeError(errorResponseData)
-    }
+	if responseData.ResponseCode != "0" {
+		errorResponseData := common.MpesaErrorResponse{}
+		err := json.Unmarshal(bodyData, &errorResponseData)
+		if err != nil {
+			return TransactionReversalSuccessResponse{}, err
+		}
+		return TransactionReversalSuccessResponse{}, t.decodeError(errorResponseData)
+	}
 
-    return responseData, nil
+	return responseData, nil
 }
 
-func (t *TransactionReversalRequest) FillDefaults() {
-}
+// FillDefaults is a placeholder for initializing default values in TransactionReversalRequest.
+func (t *TransactionReversalRequest) FillDefaults() {}
 
+// Validate checks the validity of the TransactionReversalRequest parameters.
+//
+// Returns:
+//   - An error if validation fails, or nil if the request is valid.
 func (t *TransactionReversalRequest) Validate() error {
-    return nil
+	return nil
 }
 
+// decodeError processes an M-Pesa error response and returns a structured error.
+//
+// Parameters:
+//   - e: The MpesaErrorResponse containing error details.
+//
+// Returns:
+//   - An error describing the failure with details from the response.
 func (t *TransactionReversalRequest) decodeError(e common.MpesaErrorResponse) error {
-    return sdkError.NewSDKError(e.ErrorCode, fmt.Sprintf("Request %v failed due to %v", e.RequestId, e.ErrorMessage))
+	return sdkError.NewSDKError(e.ErrorCode, fmt.Sprintf("Request %v failed due to %v", e.RequestId, e.ErrorMessage))
 }
+

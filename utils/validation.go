@@ -6,6 +6,25 @@ import (
 	"strings"
 )
 
+// ValidateEthiopianPhoneNumber validates whether a given phone number is a valid Ethiopian Safaricom number.
+//
+// Criteria for a valid phone number:
+//   - Must be 12 digits long.
+//   - Must start with "2517" (the country code and prefix for Safaricom numbers).
+//   - The remaining 8 digits must be numeric.
+//
+// Parameters:
+//   - phoneNumber: The phone number string to validate.
+//
+// Returns:
+//   - nil if the phone number is valid.
+//   - An error if the phone number is invalid.
+//
+// Example:
+//   err := ValidateEthiopianPhoneNumber("251712345678")
+//   if err != nil {
+//       fmt.Println("Invalid phone number:", err)
+//   }
 func ValidateEthiopianPhoneNumber(phoneNumber string) error {
 	phoneNumber = strings.TrimSpace(phoneNumber)
 
@@ -25,6 +44,22 @@ func ValidateEthiopianPhoneNumber(phoneNumber string) error {
     return nil
 }
 
+// ValidateString checks if a given string meets specified length requirements.
+//
+// Parameters:
+//   - toValidate: The string to validate.
+//   - minLen: The minimum allowable length (set to 0 to skip this check).
+//   - maxLen: The maximum allowable length (set to 0 to skip this check).
+//
+// Returns:
+//   - nil if the string meets the length requirements.
+//   - An error if the string is too short or too long.
+//
+// Example:
+//   err := ValidateString("test", 3, 10)
+//   if err != nil {
+//       fmt.Println("Validation error:", err)
+//   }
 func ValidateString(toValidate string, minLen, maxLen int) error {
 	if minLen > 0 && len(toValidate) < minLen {
         return fmt.Errorf("mpesasdk: validation error: %s is shorter than minLen %v", toValidate, minLen)

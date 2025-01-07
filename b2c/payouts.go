@@ -1,3 +1,5 @@
+// Package b2c provides functionality for initiating and handling Business-to-Customer (B2C) payment requests.
+// B2C payments are used when a business sends funds directly to a customer's mobile wallet.
 package b2c
 
 import (
@@ -12,84 +14,87 @@ import (
 	"github.com/coleYab/mpesasdk/utils"
 )
 
-// B2CRequest defines the parameters for initiating a Business to Customer (B2C) payment.
-// This is used when an organization sends money to a customer.
+// B2CRequest defines the parameters required to initiate a B2C payment request.
+// This struct is used to send money from a business account to a customer's mobile wallet.
+//
+// Fields:
+//   - InitiatorName: The username of the API operator initiating the request.
+//   - SecurityCredential: The encrypted password for the initiator.
+//   - CommandID: The type of transaction (e.g., BusinessPayment, SalaryPayment, or PromotionPayment).
+//   - Amount: The amount to be sent to the customer.
+//   - PartyA: The shortcode of the sender (business).
+//   - PartyB: The customer's mobile number (recipient).
+//   - Remarks: Optional comments about the transaction.
+//   - QueueTimeOutURL: URL to receive notifications if the request times out.
+//   - ResultURL: URL to receive the result of the transaction.
+//   - Occasion: Optional additional transaction details.
+//   - OriginatorConversationID: Unique identifier for the originating transaction.
 type B2CRequest struct {
-    // InitiatorName is the username of the B2C API operator.
-    InitiatorName string `json:"InitiatorName"`
-
-    // SecurityCredential is the encrypted password for the API operator.
-    SecurityCredential string `json:"SecurityCredential"`
-
-    // CommandID defines the type of B2C transaction (e.g., SalaryPaymentCommandID).
-    CommandID common.CommandId `json:"CommandID"`
-
-    // Amount is the amount to be sent to the customer.
-    Amount uint `json:"Amount"`
-
-    // PartyA is the shortcode from which the money is sent.
-    PartyA uint `json:"PartyA"`
-
-    // PartyB is the mobile number of the customer receiving the funds.
-    PartyB uint `json:"PartyB"`
-
-    // Remarks are optional comments associated with the transaction.
-    Remarks string `json:"Remarks"`
-
-    // QueueTimeOutURL is the URL for notifications if the transaction times out.
-    QueueTimeOutURL string `json:"QueueTimeOutURL"`
-
-    // ResultURL is the URL to receive results of the payment request.
-    ResultURL string `json:"ResultURL"`
-
-    // Occasion is an optional field for additional transaction details.
-    Occasion string `json:"Occasion"`
-
-    OriginatorConversationID string `json:"OriginatorConversationID"`
+	InitiatorName            string           `json:"InitiatorName"`
+	SecurityCredential       string           `json:"SecurityCredential"`
+	CommandID                common.CommandId `json:"CommandID"`
+	Amount                   uint             `json:"Amount"`
+	PartyA                   uint             `json:"PartyA"`
+	PartyB                   uint             `json:"PartyB"`
+	Remarks                  string           `json:"Remarks"`
+	QueueTimeOutURL          string           `json:"QueueTimeOutURL"`
+	ResultURL                string           `json:"ResultURL"`
+	Occasion                 string           `json:"Occasion"`
+	OriginatorConversationID string           `json:"OriginatorConversationID"`
 }
 
-type B2CSuccessResponse  common.MpesaSuccessResponse
+// B2CSuccessResponse represents a successful response from the B2C payment API.
+type B2CSuccessResponse common.MpesaSuccessResponse
 
-func(b *B2CRequest) DecodeResponse(res *http.Response) (interface{}, error) {
-    bodyData, _ := io.ReadAll(res.Body)
-    responseData := B2CSuccessResponse{}
-    err := json.Unmarshal(bodyData, &responseData)
-    if err != nil {
-        return B2CSuccessResponse{}, sdkError.ProcessingError(err.Error())
-    }
+// DecodeResponse processes the HTTP response for a B2C payment request and decodes it into the appropriate response type.
+func (b *B2CRequest) DecodeResponse(res *http.Response) (interface{}, error) {
+	bodyData, _ := io.ReadAll(res.Body)
+	responseData := B2CSuccessResponse{}
+	err := json.Unmarshal(bodyData, &responseData)
+	if err != nil {
+		return B2CSuccessResponse{}, sdkError.ProcessingError(err.Error())
+	}
 
-    if responseData.ResponseCode != "0" {
-        errorResponseData := common.MpesaErrorResponse{}
-        err := json.Unmarshal(bodyData, &errorResponseData)
-        if err != nil {
-            return B2CSuccessResponse{}, sdkError.ProcessingError(err.Error())
-        }
-        return B2CSuccessResponse{}, b.decodeError(errorResponseData)
-    }
+	if responseData.ResponseCode != "0" {
+		errorResponseData := common.MpesaErrorResponse{}
+		err := json.Unmarshal(bodyData, &errorResponseData)
+		if err != nil {
+			return B2CSuccessResponse{}, sdkError.ProcessingError(err.Error())
+		}
+		return B2CSuccessResponse{}, b.decodeError(errorResponseData)
+	}
 
-    return responseData, nil
+	return responseData, nil
 }
 
-func (b *B2CRequest) FillDefaults() {
-}
+// FillDefaults sets default values for the B2CRequest instance.
+// This function is currently a placeholder and can be used to initialize default values in future implementations.
+func (b *B2CRequest) FillDefaults() {}
 
+// Validate checks the validity of the B2CRequest parameters.
 func (b *B2CRequest) Validate() error {
-    validCommands := []common.CommandId{common.BusinessPaymentCommand, common.SalaryPaymentCommand, common.PromotionPaymentCommand}
-    if !slices.Contains(validCommands, b.CommandID) {
-        return sdkError.ValidationError("unknown CommandID " + string(b.CommandID))
-    }
+	validCommands := []common.CommandId{
+		common.BusinessPaymentCommand,
+		common.SalaryPaymentCommand,
+		common.PromotionPaymentCommand,
+	}
+	if !slices.Contains(validCommands, b.CommandID) {
+		return sdkError.ValidationError("unknown CommandID " + string(b.CommandID))
+	}
 
-    if err := utils.ValidateURL(b.QueueTimeOutURL); err != nil {
-        return err
-    }
+	if err := utils.ValidateURL(b.QueueTimeOutURL); err != nil {
+		return err
+	}
 
-    if err := utils.ValidateURL(b.ResultURL); err != nil {
-        return err
-    }
+	if err := utils.ValidateURL(b.ResultURL); err != nil {
+		return err
+	}
 
-    return nil
+	return nil
 }
 
+// decodeError converts a MpesaErrorResponse into a structured error message.
 func (b *B2CRequest) decodeError(e common.MpesaErrorResponse) error {
-    return sdkError.NewSDKError(e.ErrorCode, fmt.Sprintf("Request %v failed due to %v", e.RequestId, e.ErrorMessage))
+	return sdkError.NewSDKError(e.ErrorCode, fmt.Sprintf("Request %v failed due to %v", e.RequestId, e.ErrorMessage))
 }
+

@@ -1,3 +1,5 @@
+// Package account provides functionality for interacting with the M-Pesa API's account services,
+// specifically querying the balance of a business shortcode.
 package account
 
 import (
@@ -43,6 +45,7 @@ type AccountBalanceRequest struct {
     OriginatorConversationID string `json:"OriginatorConversationID"`
 }
 
+// AccountBalanceSuccessResponse represents the successful response to an account balance query.
 type AccountBalanceSuccessResponse common.MpesaSuccessResponse
 
 func (a *AccountBalanceRequest) DecodeResponse(res *http.Response) (interface{}, error) {
