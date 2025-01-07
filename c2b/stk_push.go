@@ -1,12 +1,14 @@
 package c2b
 
 import (
-    "encoding/json"
-    "fmt"
-    "io"
-    "net/http"
+	"encoding/json"
+	"io"
+	"net/http"
+	"slices"
 
-    sdkError "github.com/coleYab/mpesasdk/errors"
+	"github.com/coleYab/mpesasdk/common"
+	sdkError "github.com/coleYab/mpesasdk/errors"
+	"github.com/coleYab/mpesasdk/utils"
 )
 
 type ReferenceDataRequest struct {
@@ -28,7 +30,7 @@ type STKPushPaymentRequest struct {
     ReferenceData []ReferenceDataRequest `json:"ReferenceData"`
 
     // TransactionType specifies the transaction type (e.g., PayBill or Till numbers).
-    TransactionType string `json:"TransactionType"`
+    TransactionType common.TransactionType `json:"TransactionType"`
 
     // Password is the base64-encoded password used for encrypting the request.
     Password string `json:"Password"`
@@ -56,19 +58,25 @@ type STKPushPaymentRequest struct {
 
     // TransactionDesc is a short description for the transaction (1-13 characters).
     TransactionDesc string `json:"TransactionDesc"`
+
+    passkey string
+}
+
+func (s *STKPushPaymentRequest) SetPasskey(passkey string) {
+    s.passkey = passkey
 }
 
 type STKPushRequestSuccessResponse struct {
-    MerchantRequestID string
-    CheckoutRequestID string
-    ResponseCode string
-    ResponseDescription string
-    CustomerMessage string
+    MerchantRequestID string `json:"MerchantRequestID"`
+    CheckoutRequestID string `json:"CheckoutRequestID"`
+    ResponseCode string `json:"ResponseCode"`
+    ResponseDescription string `json:"ResponseDescription"`
+    CustomerMessage string `json:"CustomerMessage"`
 }
 
 type STKPushRequestError STKPushRequestSuccessResponse
 
-func (s *STKPushPaymentRequest) DecodeResponse(res *http.Response) (STKPushRequestSuccessResponse, error) {
+func (s *STKPushPaymentRequest) DecodeResponse(res *http.Response) (interface{}, error) {
     bodyData, _ := io.ReadAll(res.Body)
     responseData := STKPushRequestSuccessResponse{}
     err := json.Unmarshal(bodyData, &responseData)
@@ -76,21 +84,52 @@ func (s *STKPushPaymentRequest) DecodeResponse(res *http.Response) (STKPushReque
         return STKPushRequestSuccessResponse{}, err
     }
 
-    if responseData.ResponseCode != "0" {
-        return STKPushRequestSuccessResponse{}, s.decodeError(STKPushRequestError(responseData))
+    switch responseData.ResponseCode {
+    case "0":
+        return responseData, nil
+    case "":
+        e := common.MpesaErrorResponse{}
+        err := json.Unmarshal(bodyData, &e)
+        if err != nil {
+            return STKPushRequestSuccessResponse{}, sdkError.ProcessingError(err.Error())
+        }
+        return STKPushRequestSuccessResponse{}, s.decodeError(e)
+    default:
+        return STKPushRequestSuccessResponse{}, s.decodeError(common.MpesaErrorResponse{
+            RequestId: responseData.MerchantRequestID,
+            ErrorCode: responseData.ResponseCode,
+            ErrorMessage: responseData.ResponseDescription,
+        })
     }
 
-    return responseData, nil
 }
 
-func (a *STKPushPaymentRequest) GetResponseStatus(responseData map[string]interface{}) string {
-    return ""
+func (t *STKPushPaymentRequest) FillDefaults() {
+    t.Timestamp, t.Password = utils.GenerateTimestampAndPassword(t.BusinessShortCode, t.passkey)
 }
 
-func (s *STKPushPaymentRequest) decodeError(e STKPushRequestError) error {
-    errorCode := e.ResponseCode
-    return sdkError.NewSDKError(
-        errorCode,
-        fmt.Sprintf("Request %v failed due to %v", e.MerchantRequestID, e.ResponseDescription),
-        )
+func (t *STKPushPaymentRequest) Validate() error {
+    validTransactionTypes := []common.TransactionType{
+        common.CustomerBuyGoodsOnlineTransaction,
+        common.CustomerPayBillOnlineTransaction,
+    }
+
+    if !slices.Contains(validTransactionTypes, t.TransactionType) {
+        return sdkError.ValidationError("invalid `TransactionType`")
+    }
+
+    if err := utils.ValidateURL(t.CallBackURL); err != nil {
+        return err
+    }
+
+    return nil
+}
+
+func (s *STKPushPaymentRequest) decodeError(e common.MpesaErrorResponse) error {
+    errorCode := e.ErrorCode
+    switch errorCode {
+        case "SVC0403":
+            return sdkError.AuthenticationError(e.ErrorMessage)
+    }
+    return sdkError.CustomError("UNKOWN_ERROR", e.ErrorMessage)
 }
