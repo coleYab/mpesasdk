@@ -1,8 +1,15 @@
+# **<span style="color: red;">⚠️ Deprecated: Use [new-module](https://github.com/coleYab/mpesagosdk) instead</span>**
+
+**This package is now deprecated.**  
+Please use [new-module](https://github.com/coleYab/mpesagosdk) for future development.
+
+This package will no longer be maintained, and we recommend migrating to the alternative package for all new work.
+
 # MpesaSdk
 
 `mpesasdk` is a Go SDK for interacting with Safaricom's M-Pesa API. This SDK simplifies integration with M-Pesa's services, enabling operations such as B2C payments, C2B URL registration, STK Push payments, transaction status queries, account balance checks, and transaction reversals.
 
-> **Note**: The SDK is in **active development**. Future updates will include additional features, enhanced error handling, and validation improvements.
+
 
 ## Features
 
